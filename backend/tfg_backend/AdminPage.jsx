@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 
 const AdminPage = () => {
   const [products, setProducts] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({
@@ -19,7 +18,6 @@ const AdminPage = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const { user } = useAuth();
-  console.log('user en AdminPage:', user);
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -34,7 +32,6 @@ const AdminPage = () => {
   });
 
   useEffect(() => {
-    console.log('user en useEffect AdminPage:', user);
     if (!user || user.role !== 'ROLE_ADMIN') {
       navigate('/home');
       return;
@@ -103,8 +100,7 @@ const AdminPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Solo validar imágenes si es un nuevo producto
-    if (!editingProduct && selectedImages.length !== 4) {
+    if (selectedImages.length !== 4) {
       toast.error('Debes seleccionar exactamente 4 imágenes');
       return;
     }
@@ -122,21 +118,26 @@ const AdminPage = () => {
     const method = editingProduct ? 'PUT' : 'POST';
 
     try {
-      let base64Images = [];
-      
-      // Solo procesar imágenes si se han seleccionado nuevas
-      if (selectedImages.length > 0) {
-        const imagePromises = selectedImages.map(file => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+      // Convertir imágenes a base64 y limpiar nombres
+      const imagePromises = selectedImages.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            // Obtener el nombre del archivo sin espacios
+            const cleanFileName = file.name.replace(/\s+/g, '_');
+            // Crear un nuevo objeto File con el nombre limpio
+            const cleanFile = new File([file], cleanFileName, { type: file.type });
+            resolve({
+              data: reader.result,
+              name: cleanFileName
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
         });
+      });
 
-        base64Images = await Promise.all(imagePromises);
-      }
+      const base64Images = await Promise.all(imagePromises);
 
       const response = await fetch(url, {
         method,
@@ -146,7 +147,10 @@ const AdminPage = () => {
         body: JSON.stringify({ 
           ...formData, 
           stock: formData.stock,
-          imagenes: base64Images.length > 0 ? base64Images : undefined
+          imagenes: base64Images.map(img => ({
+            data: img.data,
+            name: img.name
+          }))
         }),
       });
 
@@ -157,7 +161,6 @@ const AdminPage = () => {
       toast.success(editingProduct ? 'Producto actualizado con éxito' : 'Producto creado con éxito');
       fetchProducts();
       resetForm();
-      setShowModal(false);
     } catch (error) {
       toast.error(error.message);
     }
@@ -248,29 +251,10 @@ const AdminPage = () => {
       nombre: product.nombre,
       descripcion: product.descripcion,
       precio: product.precio,
-      stock: product.stock,
-      visible: product.visible
+      stock: product.stock
     });
-    setFormData({
-      nombre: product.nombre,
-      descripcion: product.descripcion,
-      precio: product.precio,
-      stock: product.stock,
-      visible: product.visible,
-      imagenes: []
-    });
-    setShowModal(true);
+    setShowEditModal(true);
   };
-
-  const filteredProducts = products.filter(product => {
-    if (!product) return false;
-    const searchTermLower = searchTerm.toLowerCase();
-    return (
-      (product.nombre?.toLowerCase() || '').includes(searchTermLower) ||
-      (product.descripcion?.toLowerCase() || '').includes(searchTermLower) ||
-      (product.categoria?.toLowerCase() || '').includes(searchTermLower)
-    );
-  });
 
   if (loading) {
     return (
@@ -363,133 +347,6 @@ const AdminPage = () => {
           </div>
         </div>
 
-        {/* Búsqueda */}
-        <div className="mb-6">
-          <div className="max-w-lg w-full lg:max-w-xs">
-            <label htmlFor="search" className="sr-only">Buscar productos</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                id="search"
-                name="search"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Buscar productos..."
-                type="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Formulario de creación de productos SIEMPRE visible */}
-        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl mb-8 mx-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
-              {editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
-            </h2>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                <input
-                  type="text"
-                  name="nombre"
-                  value={formData.nombre}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Precio</label>
-                <input
-                  type="number"
-                  name="precio"
-                  value={formData.precio}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Stock</label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Imágenes {!editingProduct && '(4 requeridas)'}
-                </label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  onChange={handleImageChange}
-                  className="mt-1 block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-indigo-50 file:text-indigo-700
-                    hover:file:bg-indigo-100"
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  {editingProduct 
-                    ? 'Opcional: Selecciona nuevas imágenes para actualizar las existentes'
-                    : 'Selecciona exactamente 4 imágenes en formato JPEG, PNG o WEBP'}
-                </p>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Descripción</label>
-                <textarea
-                  name="descripcion"
-                  value={formData.descripcion}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="visible"
-                checked={formData.visible}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-900">Visible</label>
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                {editingProduct ? 'Actualizar' : 'Crear'}
-              </button>
-            </div>
-          </form>
-        </div>
-
         {/* Lista de productos */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
@@ -500,61 +357,56 @@ const AdminPage = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                  <th scope="col" className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
-                  <th scope="col" className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                  <th scope="col" className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th scope="col" className="hidden sm:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                  <th scope="col" className="hidden sm:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                  <th scope="col" className="hidden sm:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                   <th scope="col" className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProducts.map((product) => (
+                {products.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50">
                     <td className="px-4 sm:px-6 py-4">
-                      <div className="flex flex-col">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <img
-                              className="h-10 w-10 rounded-full object-cover"
-                              src={product.imagenes && product.imagenes.length > 0 
-                                ? `http://localhost:8000/images/products/${product.imagenes[0]}`
-                                : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFNUU3RUIiLz48cGF0aCBkPSJNMjAgMTVDMjIuNzYxNCAxNSAyNSAxMi43NjE0IDI1IDEwQzI1IDcuMjM4NTggMjIuNzYxNCA1IDIwIDVDMTcuMjM4NiA1IDE1IDcuMjM4NTggMTUgMTBDMTUgMTIuNzYxNCAxNy4yMzg2IDE1IDIwIDE1WiIgZmlsbD0iIzlDQThBQiIvPjxwYXRoIGQ9Ik0yMCAxOEMxNS41ODE3IDE4IDEyIDIxLjU4MTcgMTIgMjZIMjhDMjggMjEuNTgxNyAyNC40MTgzIDE4IDIwIDE4WiIgZmlsbD0iIzlDQThBQiIvPjwvc3ZnPg=='}
-                              alt={product.nombre}
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFNUU3RUIiLz48cGF0aCBkPSJNMjAgMTVDMjIuNzYxNCAxNSAyNSAxMi43NjE0IDI1IDEwQzI1IDcuMjM4NTggMjIuNzYxNCA1IDIwIDVDMTcuMjM4NiA1IDE1IDcuMjM4NTggMTUgMTBDMTUgMTIuNzYxNCAxNy4yMzg2IDE1IDIwIDE1WiIgZmlsbD0iIzlDQThBQiIvPjxwYXRoIGQ9Ik0yMCAxOEMxNS41ODE3IDE4IDEyIDIxLjU4MTcgMTIgMjZIMjhDMjggMjEuNTgxNyAyNC40MTgzIDE4IDIwIDE4WiIgZmlsbD0iIzlDQThBQiIvPjwvc3ZnPg==';
-                                e.target.className = 'h-10 w-10 rounded-full object-cover bg-gray-200';
-                              }}
-                            />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{product.nombre}</div>
-                            <div className="text-sm text-gray-500 truncate max-w-[200px]">{product.descripcion}</div>
-                            <div className="md:hidden mt-2 space-y-1">
-                              <div className="text-sm text-gray-900">Precio: {product.precio}€</div>
-                              <div className={`text-sm ${
-                                product.stock === 0 ? 'text-red-600' :
-                                product.stock < 5 ? 'text-yellow-600' :
-                                'text-green-600'
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <img
+                            className="h-10 w-10 rounded-full object-cover"
+                            src={`http://localhost:8000/images/products/${product.imagenes[0]}`}
+                            alt={product.nombre}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/40';
+                            }}
+                          />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{product.nombre}</div>
+                          <div className="text-sm text-gray-500 truncate max-w-[200px]">{product.descripcion}</div>
+                          <div className="sm:hidden mt-2 space-y-1">
+                            <div className="text-sm text-gray-900">Precio: {product.precio}€</div>
+                            <div className={`text-sm ${
+                              product.stock === 0 ? 'text-red-600' :
+                              product.stock < 5 ? 'text-yellow-600' :
+                              'text-green-600'
+                            }`}>
+                              Stock: {product.stock}
+                              {product.stock < 5 && product.stock > 0 && ' (¡Stock bajo!)'}
+                            </div>
+                            <div className="text-sm">
+                              Estado: <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                product.visible ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                               }`}>
-                                Stock: {product.stock}
-                                {product.stock < 5 && product.stock > 0 && ' (¡Stock bajo!)'}
-                              </div>
-                              <div className="text-sm">
-                                Estado: <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  product.visible ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {product.visible ? 'Visible' : 'Oculto'}
-                                </span>
-                              </div>
+                                {product.visible ? 'Visible' : 'Oculto'}
+                              </span>
                             </div>
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <td className="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{product.precio}€</div>
                     </td>
-                    <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <td className="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
                       <div className={`flex items-center ${
                         product.stock === 0 ? 'text-red-600' :
                         product.stock < 5 ? 'text-yellow-600' :
@@ -571,7 +423,7 @@ const AdminPage = () => {
                         )}
                       </div>
                     </td>
-                    <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <td className="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         product.visible ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                       }`}>
@@ -579,7 +431,7 @@ const AdminPage = () => {
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-3">
+                      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                         <button
                           onClick={() => handleEditClick(product)}
                           className="text-indigo-600 hover:text-indigo-900"
@@ -609,129 +461,145 @@ const AdminPage = () => {
           </div>
         </div>
 
-        {/* Modal de edición */}
-        {showModal && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">
-                  {editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      value={formData.nombre}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Precio</label>
-                    <input
-                      type="number"
-                      name="precio"
-                      value={formData.precio}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Stock</label>
-                    <input
-                      type="number"
-                      name="stock"
-                      value={formData.stock}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Imágenes {!editingProduct && '(4 requeridas)'}
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      multiple
-                      onChange={handleImageChange}
-                      className="mt-1 block w-full text-sm text-gray-500
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-md file:border-0
-                        file:text-sm file:font-semibold
-                        file:bg-indigo-50 file:text-indigo-700
-                        hover:file:bg-indigo-100"
-                    />
-                    <p className="mt-1 text-sm text-gray-500">
-                      {editingProduct 
-                        ? 'Opcional: Selecciona nuevas imágenes para actualizar las existentes'
-                        : 'Selecciona exactamente 4 imágenes en formato JPEG, PNG o WEBP'}
-                    </p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Descripción</label>
-                    <textarea
-                      name="descripcion"
-                      value={formData.descripcion}
-                      onChange={handleInputChange}
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center">
+        {/* Formulario de producto */}
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
+            </h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nombre</label>
                   <input
-                    type="checkbox"
-                    name="visible"
-                    checked={formData.visible}
+                    type="text"
+                    name="nombre"
+                    value={formData.nombre}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    required
                   />
-                  <label className="ml-2 block text-sm text-gray-900">Visible</label>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Precio</label>
+                  <input
+                    type="number"
+                    name="precio"
+                    value={formData.precio}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stock</label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={formData.stock}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Imágenes (4 requeridas)</label>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={handleImageChange}
+                    className="mt-1 block w-full text-sm text-gray-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-indigo-50 file:text-indigo-700
+                      hover:file:bg-indigo-100"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Selecciona exactamente 4 imágenes en formato JPEG, PNG o WEBP
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={formData.descripcion}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+              </div>
 
-                <div className="flex justify-end space-x-3">
+              {/* Vista previa de imágenes */}
+              {imagePreviews.length > 0 && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vista previa de imágenes</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={preview}
+                          alt={`Vista previa ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newPreviews = [...imagePreviews];
+                            const newImages = [...selectedImages];
+                            newPreviews.splice(index, 1);
+                            newImages.splice(index, 1);
+                            setImagePreviews(newPreviews);
+                            setSelectedImages(newImages);
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  name="visible"
+                  checked={formData.visible}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label className="ml-2 block text-sm text-gray-900">Visible</label>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                {editingProduct && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowModal(false);
-                      resetForm();
-                    }}
+                    onClick={resetForm}
                     className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
                     Cancelar
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    {editingProduct ? 'Actualizar' : 'Crear'}
-                  </button>
-                </div>
-              </form>
-            </div>
+                )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {editingProduct ? 'Actualizar' : 'Crear'}
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
 
         {/* Modal de eliminación */}
         {showDeleteModal && productToDelete && (
@@ -783,4 +651,4 @@ const AdminPage = () => {
   );
 };
 
-export default AdminPage;
+export default AdminPage; 

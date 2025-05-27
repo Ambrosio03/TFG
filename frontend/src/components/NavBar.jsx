@@ -6,22 +6,25 @@ const Navbar = () => {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [showCart, setShowCart] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useAuth();
 
   const handleLogout = async () => {
-    console.log('Usuario antes de logout:', user);
     await fetch('http://localhost:8000/logout', {
       method: 'POST',
       credentials: 'include'
     });
     logout();
-    console.log('Usuario después de logout:', user);
     localStorage.clear();
     window.location.href = '/login';
   };
 
   const toggleCart = () => {
     setShowCart(!showCart);
+  };
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
 
   const handleRemoveItem = (itemId) => {
@@ -51,11 +54,10 @@ const Navbar = () => {
   };
 
   useEffect(() => {
-    const userId = localStorage.getItem('user_id');
-    if (!userId) return;
+    if (!user) return;
 
     const fetchCart = () => {
-      fetch(`http://localhost:8000/cart/${userId}`)
+      fetch(`http://localhost:8000/cart/${user.id}`)
         .then(response => response.json())
         .then(data => {
           setCartItems(data.items || []);
@@ -66,9 +68,7 @@ const Navbar = () => {
           }, 0);
           setTotal(total);
         })
-        .catch(() => {
-          setCartItems([]);
-        });
+        .catch(error => console.error('Error fetching cart:', error));
     };
 
     fetchCart();
@@ -76,101 +76,181 @@ const Navbar = () => {
     return () => window.removeEventListener('cart-updated', fetchCart);
   }, [user]);
 
-  useEffect(() => {
-    console.log('Usuario en contexto (NavBar):', user);
-  }, [user]);
-
   return (
-    <nav className="bg-gray-800 p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-white text-xl">Mi Aplicación</h1>
-        <div className="flex items-center space-x-4">
-          {user && (
-            <span className="text-white font-semibold">
-              Hola, {user.nombre_usuario}
-            </span>
-          )}
-          <div className="flex space-x-4">
+    <nav className="bg-gray-800 shadow-lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo y nombre */}
+          <div className="flex-shrink-0">
+            <Link to="/home" className="text-white text-xl font-bold">
+              Pasión Cofrade
+            </Link>
+          </div>
+
+          {/* Menú hamburguesa para móvil */}
+          <div className="md:hidden">
+            <button
+              onClick={toggleMenu}
+              className="text-gray-300 hover:text-white focus:outline-none"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {isMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
+
+          {/* Menú principal - visible en desktop */}
+          <div className="hidden md:flex md:items-center md:space-x-4">
+            {user && (
+              <span className="text-white font-semibold px-3 py-2">
+                Hola, {user.nombre_usuario}
+              </span>
+            )}
             {user?.role !== 'ROLE_ADMIN' && (
-              <Link to="/home" className="text-white bg-green-500 px-4 py-2 rounded hover:bg-green-600">
-                Inicio
-              </Link>
+              <>
+                <Link to="/home" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
+                  Inicio
+                </Link>
+                <Link to="/mis-pedidos" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
+                  Mis Pedidos
+                </Link>
+                <Link to="/cart" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out flex items-center">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  {cartItems.length > 0 && (
+                    <span className="ml-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartItems.length}
+                    </span>
+                  )}
+                </Link>
+              </>
             )}
             {user?.role === 'ROLE_ADMIN' && (
               <>
-                <Link to="/admin" className="text-white bg-purple-500 px-4 py-2 rounded hover:bg-purple-600">
-                  Administración  productos
+                <Link to="/admin" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
+                  Administración
                 </Link>
-                <Link to="/admin/users" className="text-white bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-600">
-                  Administrar Usuarios
+                <Link to="/admin/users" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
+                  Usuarios
+                </Link>
+                <Link to="/admin/pedidos" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
+                  Pedidos
                 </Link>
               </>
             )}
             {user ? (
-              <button onClick={handleLogout} className="text-white bg-red-500 px-4 py-2 rounded hover:bg-red-600">
+              <button
+                onClick={handleLogout}
+                className="text-white hover:bg-red-600 px-3 py-2 rounded-md transition duration-150 ease-in-out"
+              >
                 Cerrar Sesión
               </button>
             ) : (
-              <Link to="/login" className="text-white bg-blue-500 px-4 py-2 rounded hover:bg-blue-600">
+              <Link
+                to="/login"
+                className="text-white hover:bg-blue-600 px-3 py-2 rounded-md transition duration-150 ease-in-out"
+              >
                 Login
               </Link>
             )}
           </div>
         </div>
-        {user?.role !== 'ROLE_ADMIN' && (
-          <div className="relative">
-            <button onClick={toggleCart} className="text-white focus:outline-none">
-              <span className="material-icons">Mi carrito</span>
-              <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full text-xs px-1">{cartItems.length}</span>
-            </button>
-            {showCart && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b">
-                  <h3 className="text-lg font-semibold text-gray-800">Mi Carrito</h3>
-                  <Link to="/cart" className="ml-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm font-medium transition">Ver carrito</Link>
-                </div>
-                <ul className="p-4 max-h-64 overflow-y-auto divide-y divide-gray-100">
-                  {cartItems.length === 0 ? (
-                    <li className="text-gray-500 text-center py-4">El carrito está vacío</li>
-                  ) : (
-                    cartItems.map(item => (
-                      <li key={item.id} className="flex justify-between items-center py-2">
-                        <div>
-                          <span className="block font-medium text-gray-700">{item.product.nombre}</span>
-                          <div className="flex items-center gap-2 mt-1">
-                            <label className="text-xs text-gray-400">Cantidad:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={e => handleUpdateQuantity(item.id, e.target.value)}
-                              className="w-14 p-1 border rounded text-xs text-center"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-green-600">{(item.product.precio * item.quantity).toFixed(2)}€</span>
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="ml-2 text-red-500 hover:text-red-700"
-                            title="Eliminar del carrito"
-                          >
-                            <span className="material-icons">delete</span>
-                          </button>
-                        </div>
-                      </li>
-                    ))
-                  )}
-                </ul>
-                <div className="px-4 py-3 border-t flex justify-between items-center bg-gray-50 rounded-b-lg">
-                  <span className="font-semibold text-gray-700">Total:</span>
-                  <span className="font-bold text-lg text-green-700">{total.toFixed(2)}€</span>
-                </div>
+      </div>
+
+      {/* Menú móvil */}
+      {isMenuOpen && (
+        <div className="md:hidden">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            {user && (
+              <div className="text-white font-semibold px-3 py-2">
+                Hola, {user.nombre_usuario}
               </div>
             )}
+            {user?.role !== 'ROLE_ADMIN' && (
+              <>
+                <Link
+                  to="/home"
+                  className="text-white hover:bg-gray-700 block px-3 py-2 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Inicio
+                </Link>
+                <Link
+                  to="/mis-pedidos"
+                  className="text-white hover:bg-gray-700 block px-3 py-2 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Mis Pedidos
+                </Link>
+                <Link
+                  to="/cart"
+                  className="text-white hover:bg-gray-700 block px-3 py-2 rounded-md flex items-center"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <svg className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Carrito
+                  {cartItems.length > 0 && (
+                    <span className="ml-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartItems.length}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+            {user?.role === 'ROLE_ADMIN' && (
+              <>
+                <Link
+                  to="/admin"
+                  className="text-white hover:bg-gray-700 block px-3 py-2 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Administración
+                </Link>
+                <Link
+                  to="/admin/users"
+                  className="text-white hover:bg-gray-700 block px-3 py-2 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Usuarios
+                </Link>
+                <Link
+                  to="/admin/pedidos"
+                  className="text-white hover:bg-gray-700 block px-3 py-2 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Pedidos
+                </Link>
+              </>
+            )}
+            {user ? (
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMenuOpen(false);
+                }}
+                className="text-white hover:bg-red-600 block w-full text-left px-3 py-2 rounded-md"
+              >
+                Cerrar Sesión
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="text-white hover:bg-blue-600 block px-3 py-2 rounded-md"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Login
+              </Link>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 };

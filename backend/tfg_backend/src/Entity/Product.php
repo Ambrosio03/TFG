@@ -28,6 +28,9 @@ class Product
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $imagen = null;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $imagenes = null;
+
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $visible = true;
 
@@ -94,6 +97,17 @@ class Product
     {
         $this->imagen = $imagen;
 
+        return $this;
+    }
+
+    public function getImagenes(): array
+    {
+        return $this->imagenes ?? [];
+    }
+
+    public function setImagenes(?array $imagenes): self
+    {
+        $this->imagenes = $imagenes;
         return $this;
     }
 

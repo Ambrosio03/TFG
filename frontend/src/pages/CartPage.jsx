@@ -1,16 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useAuth } from '../context/AuthContext';
 
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const fetchCart = () => {
-    const userId = localStorage.getItem('user_id');
-    if (!userId) return;
-    fetch(`http://localhost:8000/cart/${userId}`)
-      .then(response => response.json())
+    if (!user) {
+      setError('Debes iniciar sesión para ver tu carrito');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    fetch(`http://localhost:8000/cart/${user.id}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Error al cargar el carrito');
+        }
+        return response.json();
+      })
       .then(data => {
         setCartItems(data.items || []);
         const total = (data.items || []).reduce((acc, item) => {
@@ -19,86 +34,250 @@ const CartPage = () => {
           return acc + cantidad * precio;
         }, 0);
         setTotal(total);
+        setLoading(false);
       })
-      .catch(() => setCartItems([]));
+      .catch(error => {
+        console.error('Error:', error);
+        setError('No se pudo cargar el carrito. Por favor, intenta de nuevo más tarde.');
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
+    if (!user) {
+      setError('Debes iniciar sesión para ver tu carrito');
+      setLoading(false);
+      return;
+    }
     fetchCart();
-  }, []);
+    window.addEventListener('cart-updated', fetchCart);
+    return () => window.removeEventListener('cart-updated', fetchCart);
+  }, [user]);
 
-  const handleUpdateQuantity = (itemId, newQuantity) => {
-    fetch(`http://localhost:8000/cart/update/${itemId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ quantity: Number(newQuantity) })
-    })
-      .then(response => response.json())
-      .then(() => {
-        fetchCart();
-        window.dispatchEvent(new Event('cart-updated'));
-      })
-      .catch(error => console.error('Error al actualizar cantidad:', error));
+  const handleUpdateQuantity = async (itemId, newQuantity) => {
+    try {
+      const response = await fetch(`http://localhost:8000/cart/update/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quantity: Number(newQuantity) })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar la cantidad');
+      }
+
+      toast.success('Cantidad actualizada');
+      fetchCart();
+      window.dispatchEvent(new Event('cart-updated'));
+    } catch (error) {
+      toast.error('Error al actualizar la cantidad');
+    }
   };
 
-  return (
-    <div className="max-w-3xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold mb-6 text-center">Tu Carrito</h2>
-      {cartItems.length === 0 ? (
-        <div className="text-center text-gray-500">El carrito está vacío</div>
-      ) : (
-        <div className="space-y-4">
-          {cartItems.map(item => (
-            <div key={item.id} className="flex items-center gap-4 border-b pb-4">
-              <img
-                src={`/images/${item.product.imagen || 'default.jpg'}`}
-                alt={item.product.nombre}
-                className="w-24 h-24 object-cover rounded shadow"
-                onError={e => { e.target.src = '/images/default.jpg'; }}
-              />
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold">{item.product.nombre}</h3>
-                <p className="text-gray-600">{item.product.descripcion}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-gray-500 text-sm">Cantidad:</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={e => handleUpdateQuantity(item.id, e.target.value)}
-                    className="w-16 p-1 border rounded text-xs text-center"
-                  />
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="block text-lg font-bold text-green-600">{(item.product.precio * item.quantity).toFixed(2)}€</span>
-                <span className="text-xs text-gray-400">({item.product.precio}€ c/u)</span>
-              </div>
+  const handleRemoveItem = async (itemId) => {
+    try {
+      const response = await fetch(`http://localhost:8000/cart/remove/${itemId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar el producto');
+      }
+
+      toast.success('Producto eliminado del carrito');
+      fetchCart();
+      window.dispatchEvent(new Event('cart-updated'));
+    } catch (error) {
+      toast.error('Error al eliminar el producto');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
             </div>
-          ))}
-          <div className="flex justify-end items-center mt-6">
-            <span className="text-xl font-semibold mr-4">Total:</span>
-            <span className="text-2xl font-bold text-green-700">{total.toFixed(2)}€</span>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
           </div>
         </div>
-      )}
-      <div className="mt-8 flex justify-center gap-4">
-        <button
-          onClick={() => navigate('/home')}
-          className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition"
-        >
-          Seguir comprando
-        </button>
-        {cartItems.length > 0 && (
-          <button
-            onClick={() => navigate('/checkout')}
-            className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition"
-          >
-            Proceder al pago
-          </button>
-        )}
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+              Tu carrito está vacío
+            </h2>
+            <p className="mt-4 text-lg text-gray-500">
+              Añade algunos productos para comenzar a comprar
+            </p>
+            <div className="mt-6">
+              <Link
+                to="/home"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Ver Productos
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Carrito de Compras</h1>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Lista de productos */}
+          <div className="lg:col-span-2">
+            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+              <ul className="divide-y divide-gray-200">
+                {cartItems.map((item) => {
+                  console.log(item.product);
+                  return (
+                    <li key={item.id} className="p-6">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 w-24 h-24">
+                          {item.product.imagenes && item.product.imagenes.length > 0 ? (
+                            <img
+                              src={`http://localhost:8000/images/products/${item.product.imagenes[0]}`}
+                              alt={item.product.nombre}
+                              className="w-full h-full object-cover rounded-md"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = '/placeholder.png';
+                              }}
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center w-full h-full text-gray-400 italic h-24">
+                              Sin imagen
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-6 flex-1">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-medium text-gray-900">
+                                {item.product.nombre}
+                              </h3>
+                              <p className="mt-1 text-sm text-gray-500">
+                                {item.product.descripcion}
+                              </p>
+                            </div>
+                            <p className="text-lg font-medium text-indigo-600">
+                              {item.product.precio}€
+                            </p>
+                          </div>
+                          <div className="mt-4 flex items-center justify-between">
+                            <div className="flex items-center">
+                              <button
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                className="text-gray-500 hover:text-gray-700"
+                                disabled={item.quantity <= 1}
+                              >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                                </svg>
+                              </button>
+                              <span className="mx-4 text-gray-700">{item.quantity}</span>
+                              <button
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+
+          {/* Resumen del pedido */}
+          <div className="lg:col-span-1">
+            <div className="bg-white shadow-lg rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Resumen del Pedido</h2>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="text-gray-900">{total.toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Envío</span>
+                  <span className="text-gray-900">Gratis</span>
+                </div>
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex justify-between">
+                    <span className="text-lg font-medium text-gray-900">Total</span>
+                    <span className="text-lg font-medium text-indigo-600">{total.toFixed(2)}€</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const userLS = localStorage.getItem('user');
+                    console.log('Click en Proceder al Pago', userLS, cartItems.length);
+                    if (!userLS) {
+                      toast.error('Debes iniciar sesión para proceder al pago');
+                      navigate('/login?from=/checkout', { state: { from: '/checkout' } });
+                    } else if (cartItems.length === 0) {
+                      toast.error('Tu carrito está vacío');
+                    } else {
+                      navigate('/checkout');
+                    }
+                  }}
+                  className="w-full bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-center block"
+                >
+                  Proceder al Pago
+                </button>
+                <Link
+                  to="/home"
+                  className="block text-center text-indigo-600 hover:text-indigo-500"
+                >
+                  Continuar Comprando
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

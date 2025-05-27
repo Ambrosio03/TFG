@@ -21,10 +21,14 @@ class ProductRepository extends ServiceEntityRepository
      */
     public function findVisibleProducts(): array
     {
-        return $this->createQueryBuilder('p')
-            ->where('p.visible = :visible')
-            ->setParameter('visible', true)
-            ->getQuery()
-            ->getResult();
+        try {
+            return $this->createQueryBuilder('p')
+                ->where('p.visible = :visible')
+                ->setParameter('visible', true)
+                ->getQuery()
+                ->getResult();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al buscar productos visibles: ' . $e->getMessage());
+        }
     }
 }

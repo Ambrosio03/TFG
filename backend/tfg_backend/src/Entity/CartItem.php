@@ -13,8 +13,8 @@ class CartItem
     private $id;
 
     #[ORM\ManyToOne(targetEntity: Product::class)]
-    #[ORM\JoinColumn(nullable: false)]
-    private $product;
+    #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
+    private ?Product $product = null;
 
     #[ORM\ManyToOne(targetEntity: Cart::class, inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false)]
