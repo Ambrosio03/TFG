@@ -15,11 +15,23 @@ import ErrorPage from '../pages/ErrorPage';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import CustomLayout from '../layouts/CustomLayout';
 import CheckoutPage from '../pages/CheckoutPage';
+import { AuthProvider } from '../context/AuthContext';
+import { UserProvider } from '../context/UserContext';
+
+const Root = () => {
+  return (
+    <UserProvider>
+      <AuthProvider>
+        <CustomLayout />
+      </AuthProvider>
+    </UserProvider>
+  );
+};
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <CustomLayout />,
+    element: <Root />,
     errorElement: <ErrorPage />,
     children: [
       {

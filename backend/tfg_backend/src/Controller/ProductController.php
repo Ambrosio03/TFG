@@ -394,4 +394,110 @@ class ProductController extends AbstractController
             'cantidad_solicitada' => $cantidad
         ]);
     }
+
+    #[Route("/product/import-csv", name: "product_import_csv", methods: ["POST"])]
+    public function importCsv(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        try {
+            $file = $request->files->get('file');
+            
+            if (!$file) {
+                return $this->json(['error' => 'No se ha proporcionado ningún archivo'], Response::HTTP_BAD_REQUEST);
+            }
+
+            if ($file->getClientMimeType() !== 'text/csv' && $file->getClientOriginalExtension() !== 'csv') {
+                return $this->json(['error' => 'El archivo debe ser de tipo CSV'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $handle = fopen($file->getPathname(), 'r');
+            if (!$handle) {
+                return $this->json(['error' => 'No se pudo abrir el archivo'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            // Leer la cabecera
+            $header = fgetcsv($handle);
+            if (!$header) {
+                fclose($handle);
+                return $this->json(['error' => 'El archivo CSV está vacío'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Validar las columnas requeridas
+            $requiredColumns = ['nombre', 'descripcion', 'precio', 'stock', 'visible'];
+            $missingColumns = array_diff($requiredColumns, $header);
+            if (!empty($missingColumns)) {
+                fclose($handle);
+                return $this->json([
+                    'error' => 'Faltan columnas requeridas en el CSV',
+                    'missing_columns' => $missingColumns
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $imported = 0;
+            $errors = [];
+
+            // Leer cada línea del CSV
+            while (($data = fgetcsv($handle)) !== false) {
+                try {
+                    // Crear un array asociativo con los datos
+                    $row = array_combine($header, $data);
+
+                    // Validar y convertir los datos
+                    if (empty($row['nombre']) || empty($row['descripcion'])) {
+                        throw new \Exception('Nombre y descripción son obligatorios');
+                    }
+
+                    $precio = filter_var($row['precio'], FILTER_VALIDATE_FLOAT);
+                    if ($precio === false || $precio < 0) {
+                        throw new \Exception('Precio inválido');
+                    }
+
+                    $stock = filter_var($row['stock'], FILTER_VALIDATE_INT);
+                    if ($stock === false || $stock < 0) {
+                        throw new \Exception('Stock inválido');
+                    }
+
+                    $visible = filter_var($row['visible'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($visible === null) {
+                        throw new \Exception('Valor de visibilidad inválido');
+                    }
+
+                    // Crear el producto
+                    $product = new Product();
+                    $product->setNombre($row['nombre']);
+                    $product->setDescripcion($row['descripcion']);
+                    $product->setPrecio($precio);
+                    $product->setStock($stock);
+                    $product->setVisible($visible);
+
+                    // Establecer una imagen por defecto usando una imagen existente
+                    $defaultImage = '682c6dd5c7b23_0.webp'; // Usando una imagen existente
+                    $product->setImagen($defaultImage);
+                    $product->setImagenes([$defaultImage, $defaultImage, $defaultImage, $defaultImage]);
+
+                    $entityManager->persist($product);
+                    $imported++;
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'row' => $imported + 1,
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            fclose($handle);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'Importación completada',
+                'imported' => $imported,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Error al importar el archivo CSV',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

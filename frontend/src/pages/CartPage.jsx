@@ -3,23 +3,21 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const fetchCart = () => {
     if (!user) {
       setError('Debes iniciar sesión para ver tu carrito');
-      setLoading(false);
       return;
     }
-
-    setLoading(true);
-    fetch(`http://localhost:8000/cart/${user.id}`)
+    fetch(`${API_URL}/cart/${user.id}`)
       .then(response => {
         if (!response.ok) {
           throw new Error('Error al cargar el carrito');
@@ -34,19 +32,16 @@ const CartPage = () => {
           return acc + cantidad * precio;
         }, 0);
         setTotal(total);
-        setLoading(false);
       })
       .catch(error => {
         console.error('Error:', error);
         setError('No se pudo cargar el carrito. Por favor, intenta de nuevo más tarde.');
-        setLoading(false);
       });
   };
 
   useEffect(() => {
     if (!user) {
       setError('Debes iniciar sesión para ver tu carrito');
-      setLoading(false);
       return;
     }
     fetchCart();
@@ -94,7 +89,7 @@ const CartPage = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -253,11 +248,9 @@ const CartPage = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const userLS = localStorage.getItem('user');
-                    console.log('Click en Proceder al Pago', userLS, cartItems.length);
-                    if (!userLS) {
+                    if (!user) {
                       toast.error('Debes iniciar sesión para proceder al pago');
-                      navigate('/login?from=/checkout', { state: { from: '/checkout' } });
+                      navigate('/login', { state: { from: '/checkout' } });
                     } else if (cartItems.length === 0) {
                       toast.error('Tu carrito está vacío');
                     } else {

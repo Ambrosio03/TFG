@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const AdminPedidosPage = () => {
   const [pedidos, setPedidos] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,8 +30,8 @@ const AdminPedidosPage = () => {
   const fetchPedidos = () => {
     setLoading(true);
     const url = searchTerm 
-      ? `http://localhost:8000/pedidos?search=${encodeURIComponent(searchTerm)}`
-      : 'http://localhost:8000/pedidos';
+      ? `${API_URL}/pedidos?search=${encodeURIComponent(searchTerm)}`
+      : `${API_URL}/pedidos`;
     
     fetch(url, {
       credentials: 'include'

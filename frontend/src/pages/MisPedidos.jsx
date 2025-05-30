@@ -8,6 +8,7 @@ const MisPedidos = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     if (!user) {
@@ -19,7 +20,7 @@ const MisPedidos = () => {
 
   const fetchPedidos = () => {
     setLoading(true);
-    fetch(`http://localhost:8000/pedidos/mis-pedidos/${user.id}`, {
+    fetch(`${API_URL}/pedidos/mis-pedidos/${user.id}`, {
       credentials: 'include'
     })
       .then(response => {

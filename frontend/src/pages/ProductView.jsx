@@ -12,10 +12,11 @@ const ProductView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:8000/product/${id}`)
+    fetch(`${API_URL}/product/${id}`)
       .then(response => {
         if (!response.ok) {
           throw new Error('Error al cargar el producto');
@@ -31,7 +32,7 @@ const ProductView = () => {
         setError('No se pudo cargar el producto. Por favor, intenta de nuevo más tarde.');
         setLoading(false);
       });
-  }, [id]);
+  }, [id, API_URL]);
 
   const handleAddToCart = async (product, quantity) => {
     if (!user) {
@@ -41,7 +42,7 @@ const ProductView = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/cart/add', {
+      const response = await fetch(`${API_URL}/cart/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +114,7 @@ const ProductView = () => {
             <div className="space-y-4">
               <div className="w-full h-96">
                 <img
-                  src={`http://localhost:8000/images/products/${producto.imagenes[selectedImage]}`}
+                  src={`${API_URL}/images/products/${producto.imagenes[selectedImage]}`}
                   alt={producto.nombre}
                   className="w-full h-full object-cover rounded-lg"
                   onError={(e) => {
@@ -132,7 +133,7 @@ const ProductView = () => {
                     }`}
                   >
                     <img
-                      src={`http://localhost:8000/images/products/${img}`}
+                      src={`${API_URL}/images/products/${img}`}
                       alt={`${producto.nombre} ${index + 1}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {

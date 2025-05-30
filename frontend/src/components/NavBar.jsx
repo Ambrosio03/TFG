@@ -7,10 +7,11 @@ const Navbar = () => {
   const [total, setTotal] = useState(0);
   const [showCart, setShowCart] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const handleLogout = async () => {
-    await fetch('http://localhost:8000/logout', {
+    await fetch(`${API_URL}/logout`, {
       method: 'POST',
       credentials: 'include'
     });
@@ -28,7 +29,7 @@ const Navbar = () => {
   };
 
   const handleRemoveItem = (itemId) => {
-    fetch(`http://localhost:8000/cart/remove/${itemId}`, {
+    fetch(`${API_URL}/cart/remove/${itemId}`, {
       method: 'DELETE',
     })
       .then(response => response.json())
@@ -39,7 +40,7 @@ const Navbar = () => {
   };
 
   const handleUpdateQuantity = (itemId, newQuantity) => {
-    fetch(`http://localhost:8000/cart/update/${itemId}`, {
+    fetch(`${API_URL}/cart/update/${itemId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -57,7 +58,7 @@ const Navbar = () => {
     if (!user) return;
 
     const fetchCart = () => {
-      fetch(`http://localhost:8000/cart/${user.id}`)
+      fetch(`${API_URL}/cart/${user.id}`)
         .then(response => response.json())
         .then(data => {
           setCartItems(data.items || []);
@@ -110,7 +111,7 @@ const Navbar = () => {
                 Hola, {user.nombre_usuario}
               </span>
             )}
-            {user?.role !== 'ROLE_ADMIN' && (
+            {!hasRole('ROLE_ADMIN') && (
               <>
                 <Link to="/home" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
                   Inicio
@@ -130,7 +131,7 @@ const Navbar = () => {
                 </Link>
               </>
             )}
-            {user?.role === 'ROLE_ADMIN' && (
+            {hasRole('ROLE_ADMIN') && (
               <>
                 <Link to="/admin" className="text-white hover:bg-gray-700 px-3 py-2 rounded-md transition duration-150 ease-in-out">
                   Administración
@@ -171,7 +172,7 @@ const Navbar = () => {
                 Hola, {user.nombre_usuario}
               </div>
             )}
-            {user?.role !== 'ROLE_ADMIN' && (
+            {!hasRole('ROLE_ADMIN') && (
               <>
                 <Link
                   to="/home"
@@ -204,7 +205,7 @@ const Navbar = () => {
                 </Link>
               </>
             )}
-            {user?.role === 'ROLE_ADMIN' && (
+            {hasRole('ROLE_ADMIN') && (
               <>
                 <Link
                   to="/admin"

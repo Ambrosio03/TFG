@@ -1,31 +1,42 @@
 import React, { useEffect, useState } from 'react'
 import ProductCard from '../components/ProductCard';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user, hasRole } = useAuth();
+  const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    setLoading(true);
-    fetch('http://localhost:8000/product')
-      .then(response => {
+    // Redirigir a usuarios admin
+    if (hasRole('ROLE_ADMIN')) {
+      navigate('/admin');
+      return;
+    }
+
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(`${API_URL}/product`);
         if (!response.ok) {
-          throw new Error('Error al cargar los productos');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-      })
-      .then(data => {
+        const data = await response.json();
         setProducts(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('No se pudieron cargar los productos. Por favor, intente más tarde.');
+      } finally {
         setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching products:', error);
-        setError('No se pudieron cargar los productos. Por favor, intenta de nuevo más tarde.');
-        setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchProducts();
+  }, [navigate, hasRole]);
 
   if (loading) {
     return (

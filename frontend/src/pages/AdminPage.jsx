@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const AdminPage = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +34,7 @@ const AdminPage = () => {
     outOfStock: 0,
     totalValue: 0
   });
+  const [selectedCsvFile, setSelectedCsvFile] = useState(null);
 
   useEffect(() => {
     console.log('user en useEffect AdminPage:', user);
@@ -44,7 +47,7 @@ const AdminPage = () => {
 
   const fetchProducts = () => {
     setLoading(true);
-    fetch('http://localhost:8000/product/all')
+    fetch(`${API_URL}/product/all`)
       .then(response => response.json())
       .then(data => {
         setProducts(data);
@@ -116,8 +119,8 @@ const AdminPage = () => {
     }
 
     const url = editingProduct 
-      ? `http://localhost:8000/product/${editingProduct.id}`
-      : 'http://localhost:8000/product';
+      ? `${API_URL}/product/${editingProduct.id}`
+      : `${API_URL}/product`;
     
     const method = editingProduct ? 'PUT' : 'POST';
 
@@ -165,7 +168,7 @@ const AdminPage = () => {
 
   const handleEdit = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/product/${editingProduct.id}`, {
+      const response = await fetch(`${API_URL}/product/${editingProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,7 +195,7 @@ const AdminPage = () => {
   const handleDelete = async (productId) => {
     if (!window.confirm('¿Estás seguro de que quieres eliminar este producto?')) return;
     try {
-      const response = await fetch(`http://localhost:8000/product/${productId}`, {
+      const response = await fetch(`${API_URL}/product/${productId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -205,7 +208,7 @@ const AdminPage = () => {
 
   const handleToggleVisibility = async (productId, currentVisibility) => {
     try {
-      const response = await fetch(`http://localhost:8000/product/${productId}`, {
+      const response = await fetch(`${API_URL}/product/${productId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -364,27 +367,7 @@ const AdminPage = () => {
         </div>
 
         {/* Búsqueda */}
-        <div className="mb-6">
-          <div className="max-w-lg w-full lg:max-w-xs">
-            <label htmlFor="search" className="sr-only">Buscar productos</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                id="search"
-                name="search"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Buscar productos..."
-                type="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
+        
 
         {/* Formulario de creación de productos SIEMPRE visible */}
         <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl mb-8 mx-auto">
@@ -490,6 +473,102 @@ const AdminPage = () => {
           </form>
         </div>
 
+        {/* Importación de CSV */}
+        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl mb-8 mx-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Importar Productos desde CSV</h2>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Archivo CSV
+              </label>
+              <div className="mt-1 flex items-center space-x-4">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setSelectedCsvFile(file);
+                    }
+                  }}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-indigo-50 file:text-indigo-700
+                    hover:file:bg-indigo-100"
+                />
+                {selectedCsvFile && (
+                  <button
+                    onClick={async () => {
+                      const formData = new FormData();
+                      formData.append('file', selectedCsvFile);
+
+                      try {
+                        const response = await fetch(`${API_URL}/product/import-csv`, {
+                          method: 'POST',
+                          body: formData,
+                          credentials: 'include'
+                        });
+
+                        if (!response.ok) {
+                          throw new Error('Error al importar el archivo CSV');
+                        }
+
+                        const result = await response.json();
+                        toast.success(`Se importaron ${result.imported} productos correctamente`);
+                        fetchProducts();
+                        setSelectedCsvFile(null);
+                      } catch (error) {
+                        toast.error('Error al importar el archivo CSV: ' + error.message);
+                      }
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Importar
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                El archivo CSV debe tener las siguientes columnas: nombre, descripcion, precio, stock, visible
+              </p>
+              <a
+                href="/template.csv"
+                download
+                className="mt-2 inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Descargar plantilla CSV
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="mb-6">
+          <div className="max-w-lg w-full lg:max-w-xs">
+            <label htmlFor="search" className="sr-only">Buscar productos</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                id="search"
+                name="search"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="Buscar productos..."
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Lista de productos */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
@@ -516,7 +595,7 @@ const AdminPage = () => {
                             <img
                               className="h-10 w-10 rounded-full object-cover"
                               src={product.imagenes && product.imagenes.length > 0 
-                                ? `http://localhost:8000/images/products/${product.imagenes[0]}`
+                                ? `${API_URL}/images/products/${product.imagenes[0]}`
                                 : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFNUU3RUIiLz48cGF0aCBkPSJNMjAgMTVDMjIuNzYxNCAxNSAyNSAxMi43NjE0IDI1IDEwQzI1IDcuMjM4NTggMjIuNzYxNCA1IDIwIDVDMTcuMjM4NiA1IDE1IDcuMjM4NTggMTUgMTBDMTUgMTIuNzYxNCAxNy4yMzg2IDE1IDIwIDE1WiIgZmlsbD0iIzlDQThBQiIvPjxwYXRoIGQ9Ik0yMCAxOEMxNS41ODE3IDE4IDEyIDIxLjU4MTcgMTIgMjZIMjhDMjggMjEuNTgxNyAyNC40MTgzIDE4IDIwIDE4WiIgZmlsbD0iIzlDQThBQiIvPjwvc3ZnPg=='}
                               alt={product.nombre}
                               onError={(e) => {
@@ -757,7 +836,7 @@ const AdminPage = () => {
                 <button
                   onClick={async () => {
                     try {
-                      const response = await fetch(`http://localhost:8000/product/${productToDelete.id}`, {
+                      const response = await fetch(`${API_URL}/product/${productToDelete.id}`, {
                         method: 'DELETE',
                         credentials: 'include'
                       });
