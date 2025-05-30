@@ -30,4 +30,7 @@ WORKDIR /var/www/html
 # Instala dependencias de Composer
 RUN composer install --no-interaction --optimize-autoloader
 
-EXPOSE 80 
+EXPOSE 80
+
+# Comando para arrancar Apache en primer plano (necesario para Docker y Render)
+CMD ["apache2-foreground"]
