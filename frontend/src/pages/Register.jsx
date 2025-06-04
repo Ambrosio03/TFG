@@ -1,17 +1,30 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
+/**
+ * Componente de página de registro de usuarios.
+ * Permite a nuevos usuarios crear una cuenta en la aplicación.
+ * Incluye validación de formularios y manejo de errores.
+ */
 function Register() {
   const [formData, setFormData] = useState({
     nombre_usuario: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL;
 
+  /**
+   * Maneja los cambios en los campos del formulario.
+   * Actualiza el estado del formulario con los nuevos valores.
+   * @param {Event} e - Evento de cambio del input
+   */
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -19,13 +32,32 @@ function Register() {
     });
   };
 
+  /**
+   * Valida que las contraseñas coincidan.
+   * @returns {boolean} true si las contraseñas coinciden, false en caso contrario
+   */
+  const validatePasswords = () => {
+    return formData.password === formData.confirmPassword;
+  };
+
+  /**
+   * Maneja el envío del formulario de registro.
+   * Realiza la petición a la API y maneja la respuesta.
+   * @param {Event} e - Evento de envío del formulario
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
+    if (!validatePasswords()) {
+      setError('Las contraseñas no coinciden');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -35,12 +67,12 @@ function Register() {
 
       const data = await response.json();
       if (response.ok) {
-        window.location.href = '/login';
+        navigate('/login');
       } else {
-        setError(data.message || 'Error durante el registro');
+        throw new Error(data.message || 'Error al registrar usuario');
       }
-    } catch (error) {
-      setError('Error de conexión. Por favor, inténtalo de nuevo.');
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -127,6 +159,25 @@ function Register() {
                   autoComplete="new-password"
                   required
                   value={formData.password}
+                  onChange={handleChange}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                Confirmar contraseña
+              </label>
+              <div className="mt-1">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
                   onChange={handleChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   placeholder="••••••••"

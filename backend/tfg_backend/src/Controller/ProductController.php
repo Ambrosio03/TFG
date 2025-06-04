@@ -11,8 +11,16 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Repository\ProductRepository;
 
+/**
+ * Controlador para gestionar las operaciones relacionadas con productos
+ */
 class ProductController extends AbstractController
 {
+    /**
+     * Obtiene la lista de productos visibles en el sistema
+     * @param ProductRepository $productRepository Repositorio de productos
+     * @return Response Lista de productos con sus datos e imágenes
+     */
     #[Route("/product", name: "product_index", methods: ["GET"])]
     public function index(ProductRepository $productRepository): Response
     {
@@ -54,6 +62,11 @@ class ProductController extends AbstractController
         }
     }
 
+    /**
+     * Crea un nuevo producto en el sistema
+     * @param Request $request Datos del producto incluyendo imágenes en base64
+     * @return Response Datos del producto creado
+     */
     #[Route("/product", name: "product_create", methods: ["POST"])]
     public function create(Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -148,6 +161,11 @@ class ProductController extends AbstractController
         }
     }
 
+    /**
+     * Obtiene los detalles de un producto específico
+     * @param int $id ID del producto
+     * @return Response Datos detallados del producto
+     */
     #[Route("/product/{id}", name: "product_show", methods: ["GET"], requirements: ["id" => "\d+"])]
     public function show(int $id, EntityManagerInterface $entityManager): Response
     {
@@ -171,6 +189,11 @@ class ProductController extends AbstractController
         return $this->json($data);
     }
 
+    /**
+     * Obtiene todos los productos del sistema, incluyendo los no visibles
+     * @param ProductRepository $productRepository Repositorio de productos
+     * @return Response Lista completa de productos
+     */
     #[Route("/product/all", name: "product_all", methods: ["GET"])]
     public function all(ProductRepository $productRepository): Response
     {
@@ -211,6 +234,12 @@ class ProductController extends AbstractController
         }
     }
 
+    /**
+     * Actualiza los datos de un producto existente
+     * @param int $id ID del producto
+     * @param Request $request Datos actualizados del producto
+     * @return Response Datos del producto actualizado
+     */
     #[Route("/product/{id}", name: "product_edit", methods: ["PUT", "PATCH"], requirements: ["id" => "\\d+"])]
     public function edit(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -323,6 +352,11 @@ class ProductController extends AbstractController
         }
     }
 
+    /**
+     * Elimina un producto del sistema
+     * @param int $id ID del producto
+     * @return Response Mensaje de confirmación
+     */
     #[Route("/product/{id}", name: "product_delete", methods: ["DELETE"], requirements: ["id" => "\d+"])]
     public function delete(int $id, EntityManagerInterface $entityManager): Response
     {
@@ -338,6 +372,12 @@ class ProductController extends AbstractController
         return $this->json(['message' => 'Producto eliminado correctamente']);
     }
 
+    /**
+     * Actualiza el stock de un producto
+     * @param int $id ID del producto
+     * @param Request $request Nueva cantidad de stock
+     * @return Response Datos actualizados del producto
+     */
     #[Route("/product/{id}/stock", name: "product_update_stock", methods: ["PATCH"], requirements: ["id" => "\d+"])]
     public function updateStock(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -371,6 +411,12 @@ class ProductController extends AbstractController
         ]);
     }
 
+    /**
+     * Verifica el stock disponible de un producto
+     * @param int $id ID del producto
+     * @param Request $request Cantidad a verificar
+     * @return Response Información sobre la disponibilidad del stock
+     */
     #[Route("/product/{id}/check-stock", name: "product_check_stock", methods: ["GET"], requirements: ["id" => "\d+"])]
     public function checkStock(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -395,6 +441,11 @@ class ProductController extends AbstractController
         ]);
     }
 
+    /**
+     * Importa productos desde un archivo CSV
+     * @param Request $request Archivo CSV con datos de productos
+     * @return Response Resultado de la importación
+     */
     #[Route("/product/import-csv", name: "product_import_csv", methods: ["POST"])]
     public function importCsv(Request $request, EntityManagerInterface $entityManager): Response
     {

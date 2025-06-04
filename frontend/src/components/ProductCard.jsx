@@ -1,16 +1,35 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+/**
+ * Componente que muestra una tarjeta de producto con su información básica y galería de imágenes.
+ * @param {Object} product - Objeto que contiene la información del producto
+ * @param {string} product.id - ID único del producto
+ * @param {string} product.nombre - Nombre del producto
+ * @param {string} product.descripcion - Descripción del producto
+ * @param {number} product.precio - Precio del producto
+ * @param {string[]} product.imagenes - Array de URLs de las imágenes del producto
+ */
 const ProductCard = ({ product }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const totalImages = product.imagenes && product.imagenes.length;
 
+  /**
+   * Maneja el evento de clic en el botón de imagen anterior.
+   * Actualiza el índice de la imagen seleccionada al anterior.
+   * @param {Event} e - Evento del clic
+   */
   const handlePrev = (e) => {
     e.stopPropagation();
     e.preventDefault();
     setSelectedImage((prev) => (prev === 0 ? totalImages - 1 : prev - 1));
   };
 
+  /**
+   * Maneja el evento de clic en el botón de imagen siguiente.
+   * Actualiza el índice de la imagen seleccionada al siguiente.
+   * @param {Event} e - Evento del clic
+   */
   const handleNext = (e) => {
     e.stopPropagation();
     e.preventDefault();

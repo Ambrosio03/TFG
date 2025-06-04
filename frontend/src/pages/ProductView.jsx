@@ -2,66 +2,76 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { useCart } from '../contexts/CartContext';
 
+/**
+ * Componente de vista detallada de un producto.
+ * Muestra toda la información del producto, incluyendo imágenes, descripción y opciones de compra.
+ * Permite añadir el producto al carrito y ver sus detalles completos.
+ */
 const ProductView = () => {
-  const [producto, setProducto] = useState(null);
-  const [cantidad, setCantidad] = useState(1);
+  const { id } = useParams();
+  const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const { id } = useParams();
+  const [quantity, setQuantity] = useState(1);
+  const { addToCart } = useCart();
   const navigate = useNavigate();
   const { user } = useAuth();
   const API_URL = import.meta.env.VITE_API_URL;
 
+  /**
+   * Efecto que carga los datos del producto al montar el componente.
+   * Obtiene la información del producto desde la API.
+   */
   useEffect(() => {
-    setLoading(true);
-    fetch(`${API_URL}/product/${id}`)
-      .then(response => {
+    const fetchProduct = async () => {
+      try {
+        const response = await fetch(`${API_URL}/product/${id}`);
         if (!response.ok) {
-          throw new Error('Error al cargar el producto');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-      })
-      .then(data => {
-        setProducto(data);
+        const data = await response.json();
+        setProduct(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('No se pudo cargar el producto. Por favor, intente más tarde.');
+      } finally {
         setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        setError('No se pudo cargar el producto. Por favor, intenta de nuevo más tarde.');
-        setLoading(false);
-      });
+      }
+    };
+
+    fetchProduct();
   }, [id, API_URL]);
 
-  const handleAddToCart = async (product, quantity) => {
-    if (!user) {
-      toast.error('Debes iniciar sesión para añadir productos al carrito');
-      navigate('/login');
-      return;
+  /**
+   * Maneja el cambio de imagen seleccionada.
+   * @param {number} index - Índice de la nueva imagen seleccionada
+   */
+  const handleImageChange = (index) => {
+    setSelectedImage(index);
+  };
+
+  /**
+   * Maneja el cambio en la cantidad del producto.
+   * @param {Event} e - Evento de cambio del input
+   */
+  const handleQuantityChange = (e) => {
+    const value = parseInt(e.target.value);
+    if (value > 0) {
+      setQuantity(value);
     }
+  };
 
-    try {
-      const response = await fetch(`${API_URL}/cart/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          product_id: product.id,
-          quantity: parseInt(quantity)
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al añadir al carrito');
-      }
-
-      toast.success('Producto añadido al carrito');
-      window.dispatchEvent(new Event('cart-updated'));
-    } catch (error) {
-      toast.error('Error al añadir el producto al carrito');
+  /**
+   * Maneja la adición del producto al carrito.
+   * Añade el producto con la cantidad seleccionada al carrito.
+   */
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart(product, quantity);
     }
   };
 
@@ -92,7 +102,7 @@ const ProductView = () => {
     );
   }
 
-  if (!producto) return null;
+  if (!product) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -114,8 +124,8 @@ const ProductView = () => {
             <div className="space-y-4">
               <div className="w-full h-96">
                 <img
-                  src={`${API_URL}/images/products/${producto.imagenes[selectedImage]}`}
-                  alt={producto.nombre}
+                  src={`${API_URL}/images/products/${product.imagenes[selectedImage]}`}
+                  alt={product.nombre}
                   className="w-full h-full object-cover rounded-lg"
                   onError={(e) => {
                     e.target.onerror = null;
@@ -124,17 +134,17 @@ const ProductView = () => {
                 />
               </div>
               <div className="grid grid-cols-4 gap-4">
-                {producto.imagenes.map((img, index) => (
+                {product.imagenes.map((img, index) => (
                   <button
                     key={index}
-                    onClick={() => setSelectedImage(index)}
+                    onClick={() => handleImageChange(index)}
                     className={`relative rounded-lg overflow-hidden h-24 ${
                       selectedImage === index ? 'ring-2 ring-indigo-500' : ''
                     }`}
                   >
                     <img
                       src={`${API_URL}/images/products/${img}`}
-                      alt={`${producto.nombre} ${index + 1}`}
+                      alt={`${product.nombre} ${index + 1}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.onerror = null;
@@ -149,12 +159,12 @@ const ProductView = () => {
             {/* Información del producto */}
             <div className="space-y-6">
               <div>
-                <h1 className="text-3xl font-extrabold text-gray-900">{producto.nombre}</h1>
-                <p className="mt-2 text-2xl text-indigo-600 font-bold">{producto.precio}€</p>
+                <h1 className="text-3xl font-extrabold text-gray-900">{product.nombre}</h1>
+                <p className="mt-2 text-2xl text-indigo-600 font-bold">{product.precio}€</p>
               </div>
 
               <div className="prose prose-sm text-gray-500">
-                <p>{producto.descripcion}</p>
+                <p>{product.descripcion}</p>
               </div>
 
               <div className="border-t border-gray-200 pt-6">
@@ -183,7 +193,7 @@ const ProductView = () => {
 
               {user?.role !== 'ROLE_ADMIN' && (
                 <div className="border-t border-gray-200 pt-6">
-                  {producto.stock === 0 ? (
+                  {product.stock === 0 ? (
                     <div className="text-red-500 font-bold mb-4">No hay stock disponible</div>
                   ) : (
                     <div className="space-y-4">
@@ -193,7 +203,7 @@ const ProductView = () => {
                         </label>
                         <div className="flex items-center border rounded-md">
                           <button
-                            onClick={() => setCantidad(Math.max(1, cantidad - 1))}
+                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
                             className="px-3 py-1 text-gray-600 hover:bg-gray-100"
                           >
                             -
@@ -201,26 +211,26 @@ const ProductView = () => {
                           <input
                             type="number"
                             id="cantidad"
-                            value={cantidad}
-                            onChange={(e) => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                            value={quantity}
+                            onChange={handleQuantityChange}
                             className="w-16 text-center border-0 focus:ring-0"
                             min="1"
-                            max={producto.stock}
+                            max={product.stock}
                           />
                           <button
-                            onClick={() => setCantidad(Math.min(producto.stock, cantidad + 1))}
+                            onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
                             className="px-3 py-1 text-gray-600 hover:bg-gray-100"
                           >
                             +
                           </button>
                         </div>
                         <span className="ml-4 text-sm text-gray-500">
-                          {producto.stock} disponibles
+                          {product.stock} disponibles
                         </span>
                       </div>
 
                       <button
-                        onClick={() => handleAddToCart(producto, cantidad)}
+                        onClick={handleAddToCart}
                         className="w-full bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         Añadir al Carrito

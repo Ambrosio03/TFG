@@ -3,6 +3,11 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
+/**
+ * Componente de página de inicio de sesión.
+ * Permite a los usuarios autenticarse en la aplicación.
+ * Incluye validación de formularios y manejo de errores.
+ */
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +24,11 @@ const Login = () => {
     }
   }, [user, navigate, from]);
 
+  /**
+   * Maneja los cambios en los campos del formulario.
+   * Actualiza el estado del formulario con los nuevos valores.
+   * @param {Event} e - Evento de cambio del input
+   */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);

@@ -7,6 +7,10 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\Entity\User;
 
+/**
+ * Entidad que representa un carrito de compras de un usuario
+ * Incluye los productos añadidos, el usuario propietario y el estado del carrito
+ */
 #[ORM\Entity]
 class Cart
 {
@@ -30,16 +34,25 @@ class Cart
         $this->items = new ArrayCollection();
     }
 
+    /**
+     * Obtiene el identificador único del carrito
+     */
     public function getId(): ?int
     {
         return $this->id;
     }
 
+    /**
+     * Obtiene la colección de items del carrito
+     */
     public function getItems(): Collection
     {
         return $this->items;
     }
 
+    /**
+     * Añade un item al carrito
+     */
     public function addItem(CartItem $item): self
     {
         if (!$this->items->contains($item)) {
@@ -50,6 +63,9 @@ class Cart
         return $this;
     }
 
+    /**
+     * Elimina un item del carrito
+     */
     public function removeItem(CartItem $item): self
     {
         if ($this->items->removeElement($item)) {
@@ -62,11 +78,17 @@ class Cart
         return $this;
     }
 
+    /**
+     * Obtiene el usuario propietario del carrito
+     */
     public function getUser(): ?User
     {
         return $this->user;
     }
 
+    /**
+     * Establece el usuario propietario del carrito
+     */
     public function setUser(?User $user): self
     {
         $this->user = $user;
@@ -74,11 +96,17 @@ class Cart
         return $this;
     }
 
+    /**
+     * Obtiene el estado actual del carrito
+     */
     public function getEstado(): ?string
     {
         return $this->estado;
     }
 
+    /**
+     * Establece el estado del carrito
+     */
     public function setEstado(string $estado): self
     {
         $this->estado = $estado;

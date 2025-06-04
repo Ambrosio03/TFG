@@ -18,6 +18,10 @@ import CheckoutPage from '../pages/CheckoutPage';
 import { AuthProvider } from '../context/AuthContext';
 import { UserProvider } from '../context/UserContext';
 
+/**
+ * Componente raíz que envuelve la aplicación con los providers necesarios.
+ * Proporciona el contexto de autenticación y usuario a toda la aplicación.
+ */
 const Root = () => {
   return (
     <UserProvider>
@@ -28,7 +32,11 @@ const Root = () => {
   );
 };
 
-export const router = createBrowserRouter([
+/**
+ * Configuración de rutas de la aplicación.
+ * Define las rutas públicas y protegidas, así como sus componentes asociados.
+ */
+const router = createBrowserRouter([
   {
     path: '/',
     element: <Root />,
@@ -56,63 +64,35 @@ export const router = createBrowserRouter([
       },
       {
         path: '/cart',
-        element: <CartPage />
+        element: <ProtectedRoute><CartPage /></ProtectedRoute>
       },
       {
         path: '/checkout',
-        element: (
-          <ProtectedRoute>
-            <CheckoutPage />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute><CheckoutPage /></ProtectedRoute>
       },
       {
         path: '/mis-pedidos',
-        element: (
-          <ProtectedRoute>
-            <MisPedidos />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute><MisPedidos /></ProtectedRoute>
       },
       {
         path: '/mis-pedidos/:id',
-        element: (
-          <ProtectedRoute>
-            <MisPedidoDetalle />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute><MisPedidoDetalle /></ProtectedRoute>
       },
       {
         path: '/admin',
-        element: (
-          <ProtectedRoute requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>
       },
       {
         path: '/admin/users',
-        element: (
-          <ProtectedRoute requireAdmin>
-            <AdminUsersPage />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute requireAdmin><AdminUsersPage /></ProtectedRoute>
       },
       {
         path: '/admin/pedidos',
-        element: (
-          <ProtectedRoute requireAdmin>
-            <AdminPedidosPage />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute requireAdmin><AdminPedidosPage /></ProtectedRoute>
       },
       {
         path: '/admin/pedidos/:id',
-        element: (
-          <ProtectedRoute requireAdmin>
-            <PedidoDetalle />
-          </ProtectedRoute>
-        )
+        element: <ProtectedRoute requireAdmin><PedidoDetalle /></ProtectedRoute>
       }
     ]
   },

@@ -1,3 +1,9 @@
+/**
+ * Servicio de autenticación.
+ * Proporciona funciones para manejar la autenticación de usuarios.
+ * Incluye login, registro, verificación de token y gestión de sesión.
+ */
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const handleResponse = async (response) => {
@@ -13,6 +19,13 @@ const handleResponse = async (response) => {
   return data;
 };
 
+/**
+ * Inicia sesión con las credenciales proporcionadas.
+ * @param {Object} credentials - Credenciales de inicio de sesión
+ * @param {string} credentials.email - Email del usuario
+ * @param {string} credentials.password - Contraseña del usuario
+ * @returns {Promise<Object>} Datos del usuario y token
+ */
 export const login = async (email, password) => {
   try {
     console.log('Iniciando proceso de login...');
@@ -60,6 +73,9 @@ export const login = async (email, password) => {
   }
 };
 
+/**
+ * Cierra la sesión del usuario actual.
+ */
 export const logout = () => {
   try {
     localStorage.removeItem('user');
@@ -70,6 +86,10 @@ export const logout = () => {
   }
 };
 
+/**
+ * Obtiene el usuario actual desde el token almacenado.
+ * @returns {Promise<Object|null>} Datos del usuario o null si no hay sesión
+ */
 export const getUser = () => {
   try {
     const user = localStorage.getItem('user');
@@ -80,6 +100,10 @@ export const getUser = () => {
   }
 };
 
+/**
+ * Verifica si el token actual es válido.
+ * @returns {Promise<boolean>} true si el token es válido, false en caso contrario
+ */
 export const isAuthenticated = () => {
   try {
     const user = getUser();
@@ -87,5 +111,80 @@ export const isAuthenticated = () => {
   } catch (error) {
     console.error('Error al verificar autenticación:', error);
     return false;
+  }
+};
+
+/**
+ * Registra un nuevo usuario.
+ * @param {Object} userData - Datos del usuario a registrar
+ * @param {string} userData.name - Nombre del usuario
+ * @param {string} userData.email - Email del usuario
+ * @param {string} userData.password - Contraseña del usuario
+ * @returns {Promise<Object>} Datos del usuario registrado
+ */
+export const register = async (userData) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(userData)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Error al registrar usuario');
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Verifica si el token actual es válido.
+ * @returns {Promise<boolean>} true si el token es válido, false en caso contrario
+ */
+export const verifyToken = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${API_URL}/auth/verify`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Obtiene el usuario actual desde el token almacenado.
+ * @returns {Promise<Object|null>} Datos del usuario o null si no hay sesión
+ */
+export const getCurrentUser = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al obtener datos del usuario');
+    }
+
+    return await response.json();
+  } catch (error) {
+    return null;
   }
 }; 

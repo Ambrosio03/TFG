@@ -4,6 +4,11 @@ import { useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { toast } from 'sonner';
 
+/**
+ * Componente de página de finalización de compra.
+ * Permite al usuario completar su pedido con información de envío y pago.
+ * Incluye validación de formularios y procesamiento del pedido.
+ */
 const CheckoutPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -23,22 +28,25 @@ const CheckoutPage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL;
 
+  /**
+   * Efecto que carga los items del carrito al montar el componente.
+   * Obtiene los productos del carrito desde la API.
+   */
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    const fetchCartItems = async () => {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
 
-    setLoading(true);
-    fetch(`http://localhost:8000/cart/${user.id}`)
-      .then(response => {
+      try {
+        const response = await fetch(`${API_URL}/cart/${user.id}`);
         if (!response.ok) {
-          throw new Error('Error al cargar el carrito');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-      })
-      .then(data => {
+        const data = await response.json();
         setCartItems(data.items || []);
         const total = (data.items || []).reduce((acc, item) => {
           const cantidad = Number(item.quantity) || 0;
@@ -46,15 +54,23 @@ const CheckoutPage = () => {
           return acc + cantidad * precio;
         }, 0);
         setTotal(total);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching cart items:', err);
+        setError('No se pudieron cargar los items del carrito. Por favor, intente más tarde.');
+      } finally {
         setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        setError('No se pudo cargar el carrito. Por favor, intenta de nuevo más tarde.');
-        setLoading(false);
-      });
-  }, [navigate, user]);
+      }
+    };
 
+    fetchCartItems();
+  }, [user, API_URL, navigate]);
+
+  /**
+   * Maneja los cambios en los campos del formulario.
+   * Actualiza el estado del formulario con los nuevos valores.
+   * @param {Event} e - Evento de cambio del input
+   */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -63,9 +79,28 @@ const CheckoutPage = () => {
     }));
   };
 
+  /**
+   * Valida que todos los campos del formulario estén completos.
+   * @returns {boolean} true si el formulario es válido, false en caso contrario
+   */
+  const validateForm = () => {
+    return Object.values(formData).every(value => value.trim() !== '');
+  };
+
+  /**
+   * Maneja el envío del formulario de checkout.
+   * Procesa el pedido y redirige al usuario.
+   * @param {Event} e - Evento de envío del formulario
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError('');
+
+    if (!validateForm()) {
+      setError('Por favor, complete todos los campos');
+      return;
+    }
+
     if (!user) {
       setError('Debes iniciar sesión para realizar un pedido');
       return;
@@ -73,7 +108,7 @@ const CheckoutPage = () => {
 
     setProcessing(true);
     try {
-      const response = await fetch('http://localhost:8000/pedidos/crear', {
+      const response = await fetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,28 +118,33 @@ const CheckoutPage = () => {
           items: cartItems,
           total: total,
           paymentMethod,
-          shippingAddress: {
-            address: formData.address,
-            city: formData.city,
-            postalCode: formData.postalCode,
-            country: formData.country
-          }
-        })
+          shipping_info: formData
+        }),
       });
 
       if (!response.ok) {
         throw new Error('Error al procesar el pedido');
       }
 
+      const data = await response.json();
       toast.success('Pedido realizado con éxito');
       window.dispatchEvent(new Event('cart-updated'));
-      navigate('/mis-pedidos');
-    } catch (error) {
+      navigate(`/mis-pedidos/${data.order_id}`);
+    } catch (err) {
+      console.error('Error processing order:', err);
       toast.error('Error al procesar el pedido');
-      setError('No se pudo procesar el pedido. Por favor, intenta de nuevo.');
+      setError('Error al procesar el pedido. Por favor, intente más tarde.');
     } finally {
       setProcessing(false);
     }
+  };
+
+  /**
+   * Calcula el total del pedido.
+   * @returns {number} Total del pedido
+   */
+  const calculateTotal = () => {
+    return cartItems.reduce((total, item) => total + (item.product.precio * item.quantity), 0);
   };
 
   if (loading) {

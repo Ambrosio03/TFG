@@ -1,15 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCartItemsCount } from '../contexts/CartContext';
+import { toast } from 'react-hot-toast';
 
+/**
+ * Componente de barra de navegación principal.
+ * Proporciona navegación entre las diferentes secciones de la aplicación.
+ * Incluye menú de usuario, carrito y búsqueda de productos.
+ */
 const Navbar = () => {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [showCart, setShowCart] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { user, logout, hasRole } = useAuth();
+  const navigate = useNavigate();
+  const cartItemsCount = useCartItemsCount();
   const API_URL = import.meta.env.VITE_API_URL;
 
+  /**
+   * Maneja el cierre de sesión del usuario.
+   * Limpia el estado de autenticación y redirige al inicio.
+   */
   const handleLogout = async () => {
     await fetch(`${API_URL}/logout`, {
       method: 'POST',
@@ -17,7 +32,7 @@ const Navbar = () => {
     });
     logout();
     localStorage.clear();
-    window.location.href = '/login';
+    navigate('/login');
   };
 
   const toggleCart = () => {
@@ -26,6 +41,31 @@ const Navbar = () => {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  /**
+   * Maneja la búsqueda de productos.
+   * Redirige a la página de resultados con la consulta.
+   * @param {Event} e - Evento de envío del formulario
+   */
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  /**
+   * Maneja la navegación a la página del carrito.
+   * Verifica si el usuario está autenticado.
+   */
+  const handleCartClick = () => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para ver tu carrito');
+      navigate('/login');
+      return;
+    }
+    navigate('/cart');
   };
 
   const handleRemoveItem = (itemId) => {

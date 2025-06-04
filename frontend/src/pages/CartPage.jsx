@@ -3,28 +3,36 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL;
-
+/**
+ * Componente de página del carrito de compras.
+ * Muestra los productos añadidos al carrito y permite gestionar las cantidades.
+ * Incluye el resumen del pedido y la opción de proceder al checkout.
+ */
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL;
 
-  const fetchCart = () => {
-    if (!user) {
-      setError('Debes iniciar sesión para ver tu carrito');
-      return;
-    }
-    fetch(`${API_URL}/cart/${user.id}`)
-      .then(response => {
+  /**
+   * Efecto que carga los items del carrito al montar el componente.
+   * Obtiene los productos del carrito desde la API.
+   */
+  useEffect(() => {
+    const fetchCartItems = async () => {
+      if (!user) {
+        setError('Debes iniciar sesión para ver tu carrito');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/cart/${user.id}`);
         if (!response.ok) {
-          throw new Error('Error al cargar el carrito');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-      })
-      .then(data => {
+        const data = await response.json();
         setCartItems(data.items || []);
         const total = (data.items || []).reduce((acc, item) => {
           const cantidad = Number(item.quantity) || 0;
@@ -32,61 +40,98 @@ const CartPage = () => {
           return acc + cantidad * precio;
         }, 0);
         setTotal(total);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        setError('No se pudo cargar el carrito. Por favor, intenta de nuevo más tarde.');
-      });
-  };
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching cart items:', err);
+        setError('No se pudieron cargar los items del carrito. Por favor, intente más tarde.');
+      }
+    };
 
-  useEffect(() => {
-    if (!user) {
-      setError('Debes iniciar sesión para ver tu carrito');
-      return;
-    }
-    fetchCart();
-    window.addEventListener('cart-updated', fetchCart);
-    return () => window.removeEventListener('cart-updated', fetchCart);
-  }, [user]);
+    fetchCartItems();
+    window.addEventListener('cart-updated', fetchCartItems);
+    return () => window.removeEventListener('cart-updated', fetchCartItems);
+  }, [user, API_URL]);
 
+  /**
+   * Actualiza la cantidad de un producto en el carrito.
+   * @param {number} productId - ID del producto a actualizar
+   * @param {number} newQuantity - Nueva cantidad del producto
+   */
   const handleUpdateQuantity = async (itemId, newQuantity) => {
+    if (!user) return;
+
     try {
-      const response = await fetch(`http://localhost:8000/cart/update/${itemId}`, {
+      const response = await fetch(`${API_URL}/cart/update`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ quantity: Number(newQuantity) })
+        body: JSON.stringify({
+          user_id: user.id,
+          product_id: itemId,
+          quantity: newQuantity
+        }),
       });
 
       if (!response.ok) {
         throw new Error('Error al actualizar la cantidad');
       }
 
+      setCartItems(prevItems =>
+        prevItems.map(item =>
+          item.product_id === itemId
+            ? { ...item, quantity: newQuantity }
+            : item
+        )
+      );
       toast.success('Cantidad actualizada');
-      fetchCart();
       window.dispatchEvent(new Event('cart-updated'));
-    } catch (error) {
+    } catch (err) {
+      console.error('Error updating quantity:', err);
       toast.error('Error al actualizar la cantidad');
     }
   };
 
+  /**
+   * Elimina un producto del carrito.
+   * @param {number} productId - ID del producto a eliminar
+   */
   const handleRemoveItem = async (itemId) => {
+    if (!user) return;
+
     try {
-      const response = await fetch(`http://localhost:8000/cart/remove/${itemId}`, {
+      const response = await fetch(`${API_URL}/cart/remove`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          product_id: itemId
+        }),
       });
 
       if (!response.ok) {
         throw new Error('Error al eliminar el producto');
       }
 
+      setCartItems(prevItems =>
+        prevItems.filter(item => item.product_id !== itemId)
+      );
       toast.success('Producto eliminado del carrito');
-      fetchCart();
       window.dispatchEvent(new Event('cart-updated'));
-    } catch (error) {
+    } catch (err) {
+      console.error('Error removing item:', err);
       toast.error('Error al eliminar el producto');
     }
+  };
+
+  /**
+   * Calcula el total del carrito.
+   * @returns {number} Total del carrito
+   */
+  const calculateTotal = () => {
+    return cartItems.reduce((total, item) => total + (item.product?.precio * item.quantity), 0);
   };
 
   if (authLoading) {

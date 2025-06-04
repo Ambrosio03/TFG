@@ -12,8 +12,16 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+/**
+ * Controlador para gestionar las operaciones del carrito de compras
+ */
 class CartController extends AbstractController
 {
+    /**
+     * Obtiene el carrito pendiente de un usuario y sus productos
+     * @param int $userId ID del usuario
+     * @return Response Carrito y sus items
+     */
     #[Route("/cart/{userId}", name: "cart_index", methods: ["GET"])]
     public function index(int $userId, EntityManagerInterface $entityManager): Response
     {
@@ -63,6 +71,11 @@ class CartController extends AbstractController
     }
 
     
+    /**
+     * Elimina un elemento del carrito
+     * @param int $id ID del item del carrito
+     * @return Response Mensaje de éxito o error
+     */
     #[Route("/cart/remove/{id}", name: "cart_remove", methods: ["DELETE"])]
     public function remove(int $id, EntityManagerInterface $entityManager): Response
     {
@@ -78,6 +91,12 @@ class CartController extends AbstractController
         return $this->json(['success' => 'Elemento eliminado del carrito']);
     }
 
+    /**
+     * Actualiza la cantidad de un producto en el carrito
+     * @param int $id ID del item del carrito
+     * @param Request $request Nueva cantidad
+     * @return Response Item actualizado o error
+     */
     #[Route("/cart/update/{id}", name: "cart_update", methods: ["PUT"])]
     public function updateQuantity(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -131,6 +150,11 @@ class CartController extends AbstractController
         }
     }
 
+    /**
+     * Añade un producto al carrito de un usuario
+     * @param Request $request Datos del usuario, producto y cantidad
+     * @return Response Mensaje de éxito o error
+     */
     #[Route("/cart/add", name: "cart_add", methods: ["POST"])]
     public function addToCart(Request $request, EntityManagerInterface $entityManager): Response
     {

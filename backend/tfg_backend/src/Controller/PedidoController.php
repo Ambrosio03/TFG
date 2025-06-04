@@ -14,8 +14,16 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+/**
+ * Controlador para gestionar las operaciones relacionadas con pedidos
+ */
 class PedidoController extends AbstractController
 {
+    /**
+     * Obtiene la lista de todos los pedidos del sistema
+     * @param EntityManagerInterface $entityManager Gestor de entidades
+     * @return Response Lista de pedidos con sus detalles
+     */
     #[Route("/pedidos", name: "pedido_index", methods: ["GET"])]
     public function index(EntityManagerInterface $entityManager): Response
     {
@@ -45,6 +53,11 @@ class PedidoController extends AbstractController
         return $this->json($data);
     }
 
+    /**
+     * Obtiene los detalles de un pedido específico
+     * @param int $id ID del pedido
+     * @return Response Datos detallados del pedido incluyendo usuario e items
+     */
     #[Route("/pedidos/{id}", name: "pedido_show", methods: ["GET"])]
     public function show(int $id, EntityManagerInterface $entityManager): Response
     {
@@ -87,6 +100,11 @@ class PedidoController extends AbstractController
         ]);
     }
 
+    /**
+     * Crea un nuevo pedido a partir del carrito del usuario
+     * @param Request $request Datos del pedido incluyendo ID de usuario
+     * @return Response Datos del pedido creado
+     */
     #[Route("/pedidos/crear", name: "pedido_create", methods: ["POST"])]
     public function create(Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -197,6 +215,12 @@ class PedidoController extends AbstractController
         }
     }
 
+    /**
+     * Actualiza el estado de un pedido
+     * @param int $id ID del pedido
+     * @param Request $request Nuevo estado del pedido
+     * @return Response Estado actualizado del pedido
+     */
     #[Route("/pedidos/{id}/estado", name: "pedido_update_estado", methods: ["PATCH"])]
     public function updateEstado(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -236,6 +260,11 @@ class PedidoController extends AbstractController
         }
     }
 
+    /**
+     * Obtiene todos los pedidos de un usuario específico
+     * @param int $userId ID del usuario
+     * @return Response Lista de pedidos del usuario
+     */
     #[Route("/pedidos/usuario/{userId}", name: "pedido_user", methods: ["GET"])]
     public function getPedidosUsuario(int $userId, EntityManagerInterface $entityManager): Response
     {
@@ -268,6 +297,11 @@ class PedidoController extends AbstractController
         return $this->json($data);
     }
 
+    /**
+     * Obtiene los items de un pedido específico
+     * @param int $pedidoId ID del pedido
+     * @return Response Lista de items del pedido
+     */
     #[Route("/pedidos/items/{pedidoId}", name: "pedido_items", methods: ["GET"])]
     public function getPedidoItems(int $pedidoId, EntityManagerInterface $entityManager): Response
     {
@@ -316,6 +350,10 @@ class PedidoController extends AbstractController
         }
     }
 
+    /**
+     * Obtiene todos los items de todos los pedidos
+     * @return Response Lista completa de items de pedidos
+     */
     #[Route("/pedidos/items", name: "pedido_items_all", methods: ["GET"])]
     public function getAllPedidoItems(EntityManagerInterface $entityManager): Response
     {
@@ -362,6 +400,11 @@ class PedidoController extends AbstractController
         }
     }
 
+    /**
+     * Obtiene los pedidos del usuario actual
+     * @param int $userId ID del usuario
+     * @return Response Lista de pedidos del usuario actual
+     */
     #[Route("/pedidos/mis-pedidos/{userId}", name: "pedido_mis_pedidos", methods: ["GET"])]
     public function getMisPedidos(int $userId, EntityManagerInterface $entityManager): Response
     {

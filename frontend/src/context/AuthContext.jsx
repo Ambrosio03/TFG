@@ -2,10 +2,21 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login as authLogin, logout as authLogout, getUser as getStoredUser } from '../services/auth';
 
-const AuthContext = createContext();
+/**
+ * Contexto de autenticación.
+ * Proporciona estado y funciones para manejar la autenticación de usuarios.
+ * Incluye login, logout y verificación de roles.
+ */
+export const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+/**
+ * Proveedor del contexto de autenticación.
+ * Maneja el estado de autenticación y proporciona funciones de autenticación.
+ * @param {Object} props - Propiedades del componente
+ * @param {React.ReactNode} props.children - Componentes hijos a envolver
+ */
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);

@@ -10,8 +10,16 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
+/**
+ * Controlador para gestionar el inicio de sesión de usuarios
+ */
 class LoginController extends AbstractController
 {
+    /**
+     * Realiza el inicio de sesión de un usuario comprobando email y contraseña
+     * @param Request $request Credenciales del usuario
+     * @return Response Datos del usuario autenticado o error
+     */
     #[Route('/login', name: 'user_login', methods: ['POST'])]
     public function login(Request $request, EntityManagerInterface $entityManager, UserPasswordHasherInterface $passwordHasher): Response
     {

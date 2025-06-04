@@ -3,6 +3,11 @@ import ProductCard from '../components/ProductCard';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+/**
+ * Componente principal de la página de inicio.
+ * Muestra una lista de productos destacados, una sección hero y enlaces a redes sociales.
+ * Redirige automáticamente a los administradores al panel de administración.
+ */
 const HomePage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,6 +16,10 @@ const HomePage = () => {
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL;
 
+  /**
+   * Efecto que se ejecuta al montar el componente.
+   * Redirige a administradores y carga los productos de la API.
+   */
   useEffect(() => {
     // Redirigir a usuarios admin
     if (hasRole('ROLE_ADMIN')) {
@@ -18,6 +27,10 @@ const HomePage = () => {
       return;
     }
 
+    /**
+     * Función que obtiene los productos de la API.
+     * Maneja los estados de carga y error.
+     */
     const fetchProducts = async () => {
       try {
         const response = await fetch(`${API_URL}/product`);

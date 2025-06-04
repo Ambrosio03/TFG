@@ -7,7 +7,8 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Product>
+ * Repositorio para la entidad Product
+ * Contiene métodos personalizados para consultar productos en la base de datos
  */
 class ProductRepository extends ServiceEntityRepository
 {
@@ -17,6 +18,7 @@ class ProductRepository extends ServiceEntityRepository
     }
 
     /**
+     * Devuelve un array de productos que están marcados como visibles
      * @return Product[]
      */
     public function findVisibleProducts(): array
