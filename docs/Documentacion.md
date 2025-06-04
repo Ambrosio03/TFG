@@ -2,6 +2,8 @@
 
 ## 1. Análisis del Problema
 
+## URL DESPLIEGUE (AVISAD PORQUE LO TENGO EN UN SERVIDOR EN LOCAL) https://tremendous-confusion-pirates-conviction.trycloudflare.com/
+
 ### 1.1. Introducción
 Este proyecto consiste en el desarrollo de una tienda online completa que permite a los usuarios realizar compras de productos y a los administradores gestionar el inventario, pedidos y usuarios. La aplicación está desarrollada utilizando React para el frontend y PHP para el backend, con MySQL como sistema de gestión de base de datos.
 
